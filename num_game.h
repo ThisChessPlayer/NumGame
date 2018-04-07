@@ -11,6 +11,10 @@
 #ifndef NUM_GAME_H
 #define NUM_GAME_H
 
+#include <vector>
+
+using std::vector;
+
 const int MAX_STATE_SIZE = 6; // max num of cards used
 const int MAX_NUM = 20000;
 
@@ -19,12 +23,14 @@ unsigned int P[MAX_NUM]; //primes
 
 int hash_state(int nums[], int len);
 int worker_func(int id);
+bool check_join();
 void handle_input();
 void load_primes(const char * filename);
 
 class state {
   public:
-    int state[MAX_STATE_SIZE];
+    state(vector<int> n, const char * s);
+    vector<int> nums;
     char sol[8 * MAX_STATE_SIZE];
 };
 

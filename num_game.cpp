@@ -10,6 +10,7 @@
 
 #include <chrono>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
@@ -18,6 +19,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "num_game.h"
 
@@ -34,9 +36,23 @@ using std::setw;
 using std::string;
 using std::stringstream;
 using std::thread;
+using std::vector;
 
 /*[Global Variables]---------------------------------------------------------*/
 queue<state> * q;
+int target;
+int num_threads;
+
+bool exit_threads = 0;
+
+state::state(vector<int> n, const char * s) {
+  while(n.size() != 0) {
+    nums.push_back(n.back());
+    n.pop_back();
+  }
+  
+  strcpy(sol, s);
+}
 
 /*---------------------------------------------------------------------------*
  Name: hash_state
@@ -70,30 +86,86 @@ int worker_func(int id) {
 
   msg << "[" << setw(4) << id << setw(1) << "] Started" << endl;
   cout << msg.str();
+  msg.str("");
 
-  //TODO implement this as well as helper funcs
+  while(1) {
+
+    //if queue is empty, wait for element
+    while(q[id].size() == 0) {
+      msg << "[" << setw(4) << id << setw(1) << "] Q empty" << endl;
+      cerr << msg.str();
+      msg.str("");
+
+      if(exit_threads) {
+        return 0;
+      }
+
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    state s = q[id].front();
+    q[id].pop();
+  }
 
   return 0;
+}
+
+bool check_join() {
+  int i;
+
+  for(i = 0; i < num_threads; i++) {
+    if(!q[i].empty())
+      return 0;
+  }
+  return 1;
 }
 
 void handle_input() {
   string input;
 
+  cout << "[main] Enter nums: " << endl;
   while(getline(cin, input)) {
-    cout << input << endl;
-
     if(input == "q")
       break;
 
-    //TODO parse input and pass it along to q[0].
+    stringstream ssinput(input);
+
+    vector<int> nums;
+
+    int i = 0;
+    int num;
+    while(i < MAX_STATE_SIZE && ssinput >> num) {
+      nums.push_back(num);
+      i++;
+    }
+
+    //DEBUG printout
+    for(i = 0; i < (int) nums.size(); i++) {
+      cout << nums[i] << " ";
+    }
+    cout << endl;
+
+    state init_state(nums, "");
+    q[0].push(init_state);
+
+    //wait until join
+    while(!check_join()) {
+      //cerr << "[main] Waiting" << endl;
+
+      //TODO maybe find some better way than busywaiting/polling
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+
+    cout << "[main] Enter nums: " << endl;
   }
+
+  exit_threads = 1;
 }
 
 int main(int argc, char * argv[]) {
   
   int i;
-  int target;
-  int num_threads = 1;
+  
+  num_threads = 1;
 
   //parse args
   if(argc < 2) {
